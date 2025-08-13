@@ -1,189 +1,121 @@
-﻿using System.Reflection;
-
+﻿
 class Program
 {
-    class Order
-    {
-        public int orderId;
-        public string? customerName;
-        public int amount;
+    
 
-    }
-    class Employee
+    //Second Task Main
+    public class Customer
     {
-        public int employeeId;
-        public string? employeeName;
-        public int salary;
+        public string Name { get; set; }
+        public List<Order> Orders { get; set; }
     }
 
-    class Student
+    public class Order
     {
-        public int studentId;
-        public string? studentName;
+        public int OrderId { get; set; }
+        public decimal Total { get; set; }
     }
 
-    class Grade
+    public class Sale
     {
-        public int studentId;
-        public int score;
+        public string Region { get; set; }
+        public decimal Amount { get; set; }
     }
 
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Category { get; set; }
+    }
+
+    public class Order_Group
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
 
     static void Main(string[] args)
     {
 
-        // Basic LINQ Filtering
-        var products = new List<string> { "Laptop", "Mouse", "Keyboard", "Monitor", "Speaker" };
-        var startWithMLambda = products.Where(product => product.ToLower().StartsWith("m"));
-        foreach (var product in startWithMLambda)
+        // Question 1: Nested Projection with SelectMany
+
+        List<Customer> customers = new List<Customer>
         {
-            System.Console.WriteLine($"{product}");
-        }
-
-        System.Console.WriteLine("----------------------------------------");
-
-        var startWithMQuery = from product in products
-                              where product.ToLower().StartsWith('m')
-                              select product;
-        foreach (var product in startWithMQuery)
-        {
-            System.Console.WriteLine($"{product}");
-        }
-
-        System.Console.WriteLine("----------------------------------------");
-
-        // LINQ Grouping I
-        var orders = new List<Order>
-        {
-            new Order { orderId = 1, customerName = "Ali", amount = 250 },
-            new Order { orderId = 2, customerName = "Ahmad", amount = 150 },
-            new Order { orderId = 3, customerName = "Ali", amount = 300 },
-            new Order { orderId = 3, customerName = "Haya", amount = 300 }
+            new Customer { Name = "Alice", Orders = new List<Order> { new Order { OrderId = 1, Total = 100 }, new Order { OrderId = 2, Total = 150 } } },
+            new Customer { Name = "Bob", Orders = new List<Order> { new Order { OrderId = 3, Total = 200 } } }
         };
 
-        var totalAmountSpentLambda = orders
-            .GroupBy(order => order.customerName)
-            .Select(spentGroupe => new
-            {
-                customerName = spentGroupe.Key,
-                totalAmount = spentGroupe.Sum(order => order.amount)
-            });
+        var flattenedOrders = customers
+            .SelectMany(c => c.Orders, (c, o) => new { CustomerName = c.Name, o.Total });
 
-        foreach (var totalSpent in totalAmountSpentLambda)
+        foreach (var item in flattenedOrders)
         {
-            System.Console.WriteLine($"{totalSpent.customerName}: {totalSpent.totalAmount}");
+            Console.WriteLine($"Customer: {item.CustomerName}, Order Total: {item.Total}");
         }
 
-        System.Console.WriteLine("----------------------------------------");
+        Console.WriteLine("----------------------------------------");
+        // Question 2: Conditional Group Aggregation
 
-        var totalAmountSpentQuery = from order in orders
-                                    group order by order.customerName into spentGroupe
-                                    select new
-                                    {
-                                        customerName = spentGroupe.Key,
-                                        totalAmount = spentGroupe.Sum(order => order.amount)
-                                    };
-
-        foreach (var totalSpent in totalAmountSpentQuery)
+        List<Sale> sales = new List<Sale>
         {
-            System.Console.WriteLine($"{totalSpent.customerName}: {totalSpent.totalAmount}");
-        }
-
-        System.Console.WriteLine("----------------------------------------");
-
-        // LINQ Grouping II
-        var employees = new List<Employee>
-        {
-            new Employee { employeeId = 1, employeeName = "Nidal", salary = 3000 },
-            new Employee { employeeId = 2, employeeName = "Sara", salary = 4000 },
-            new Employee { employeeId = 3, employeeName = "Areen", salary = 3500 },
-            new Employee { employeeId = 4, employeeName = "Abdullah", salary = 3000 },
-            new Employee { employeeId = 5, employeeName = "Ehab", salary = 1000 }, //:p
-            new Employee { employeeId = 6, employeeName = "Afaf", salary = 3500 },
-            new Employee { employeeId = 7, employeeName = "Worood", salary = 3500 }
+            new Sale { Region = "North", Amount = 1200 },
+            new Sale { Region = "North", Amount = 800 },
+            new Sale { Region = "South", Amount = 1500 },
+            new Sale { Region = "South", Amount = 700 },
+            new Sale { Region = "East", Amount = 2000 },
+            new Sale { Region = "East", Amount = 500 }
         };
 
-        var groupBySalaryLambda = employees
-            .GroupBy(e => e.salary)
-            .Where(g => g.Count() > 2)
+        var regionStats = sales
+            .GroupBy(s => s.Region)
             .Select(g => new
             {
-                salary = g.Key,
-                employees = g.Select(e => e.employeeName).OrderBy(name => name).ToList()
+                Region = g.Key,
+                TotalSales = g.Sum(s => s.Amount),
+                AverageSales = g.Average(s => s.Amount),
+                HighValueSalesCount = g.Count(s => s.Amount > 1000)
             });
 
-        foreach (var salaryGroupe in groupBySalaryLambda)
+        foreach (var stat in regionStats)
         {
-            System.Console.WriteLine($"Salary: {salaryGroupe.salary}, Employees: {{{string.Join(", ", salaryGroupe.employees)}}}");
+            Console.WriteLine($"Region: {stat.Region}, Total: {stat.TotalSales}, Average: {stat.AverageSales}, High-Value Sales: {stat.HighValueSalesCount}");
         }
 
-        System.Console.WriteLine("----------------------------------------");
+        Console.WriteLine("----------------------------------------");
+        // Question 3: Join + GroupBy + Aggregation
 
-        var groupBySalaryQuery = from employee in employees
-                                 group employee by employee.salary into g
-                                 where g.Count() > 2
-                                 select new
-                                 {
-                                     salary = g.Key,
-                                     employees = (from e in g
-                                                  orderby e.employeeName
-                                                  select e.employeeName).ToList()
-                                 };
-
-        foreach (var salaryGroupe in groupBySalaryQuery)
+        List<Order_Group> orders = new List<Order_Group>
         {
-            System.Console.WriteLine($"Salary: {salaryGroupe.salary}, Employees: {{{string.Join(", ", salaryGroupe.employees)}}}");
-        }
-
-        System.Console.WriteLine("----------------------------------------");
-
-        // LINQ Join
-
-        var students = new List<Student>
-        {
-            new Student { studentId = 1, studentName = "Ali" },
-            new Student { studentId = 2, studentName = "Sara" }
+            new Order_Group { ProductId = 1, Quantity = 10 },
+            new Order_Group { ProductId = 2, Quantity = 5 },
+            new Order_Group { ProductId = 3, Quantity = 8 },
+            new Order_Group { ProductId = 1, Quantity = 7 },
+            new Order_Group { ProductId = 2, Quantity = 3 }
         };
 
-        var grades = new List<Grade>
+        List<Product> products = new List<Product>
         {
-            new Grade { studentId = 1, score = 85 },
-            new Grade { studentId = 2, score = 92 }
+            new Product { Id = 1, Category = "Electronics" },
+            new Product { Id = 2, Category = "Books" },
+            new Product { Id = 3, Category = "Electronics" }
         };
 
-        var joinByStudentNameLambda = students.Join(grades, student => student.studentId, grade => grade.studentId, (student, grade) =>
-         new
-         {
-             student.studentName,
-             grade.score
-         });
+        var categorySales = orders
+            .Join(products,
+                o => o.ProductId,
+                p => p.Id,
+                (o, p) => new { p.Category, o.Quantity })
+            .GroupBy(x => x.Category)
+            .Select(g => new
+            {
+                Category = g.Key,
+                TotalQuantitySold = g.Sum(x => x.Quantity)
+            });
 
-        foreach (var item in joinByStudentNameLambda)
+        foreach (var item in categorySales)
         {
-            Console.WriteLine($"{item.studentName}: {item.score}");
+            Console.WriteLine($"Category: {item.Category}, Total Quantity Sold: {item.TotalQuantitySold}");
         }
-
-        System.Console.WriteLine("----------------------------------------");
-
-        var joinByStudentNameQuery = from student in students
-                                     join grade in grades on student.studentId equals grade.studentId
-                                     select new
-                                     {
-                                         student.studentName,
-                                         grade.score
-                                     };
-        
-        foreach (var item in joinByStudentNameQuery)
-        {
-            Console.WriteLine($"{item.studentName}: {item.score}");
-        }
-
-
-
-
-
-
     }
-
 
 }
