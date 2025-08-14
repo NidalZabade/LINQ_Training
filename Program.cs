@@ -1,7 +1,7 @@
 ﻿
 class Program
 {
-    
+
 
     //Second Task Main
     public class Customer
@@ -32,6 +32,13 @@ class Program
     {
         public int ProductId { get; set; }
         public int Quantity { get; set; }
+    }
+
+    public class Transaction
+    {
+        public DateTime Date { get; set; }
+        public string Category { get; set; }
+        public decimal Amount { get; set; }
     }
 
     static void Main(string[] args)
@@ -115,6 +122,35 @@ class Program
         foreach (var item in categorySales)
         {
             Console.WriteLine($"Category: {item.Category}, Total Quantity Sold: {item.TotalQuantitySold}");
+        }
+
+        Console.WriteLine("----------------------------------------");
+        // Question 4: Time-Series Aggregation by Month and Category
+
+        List<Transaction> transactions = new List<Transaction>
+        {
+            new Transaction { Date = new DateTime(2024, 1, 10), Category = "Food", Amount = 50 },
+            new Transaction { Date = new DateTime(2024, 1, 15), Category = "Transport", Amount = 20 },
+            new Transaction { Date = new DateTime(2024, 2, 5), Category = "Food", Amount = 30 },
+            new Transaction { Date = new DateTime(2024, 2, 20), Category = "Transport", Amount = 25 },
+            new Transaction { Date = new DateTime(2024, 1, 22), Category = "Food", Amount = 40 },
+            new Transaction { Date = new DateTime(2024, 2, 18), Category = "Food", Amount = 60 }
+        };
+
+        var monthlyCategoryTotals = transactions
+            .GroupBy(t => new { Month = t.Date.Month, t.Category })
+            .Select(g => new
+            {
+                Month = g.Key.Month,
+                Category = g.Key.Category,
+                TotalAmount = g.Sum(t => t.Amount)
+            })
+            .OrderBy(x => x.Month)
+            .ThenBy(x => x.Category);
+
+        foreach (var item in monthlyCategoryTotals)
+        {
+            Console.WriteLine($"Month: {item.Month}, Category: {item.Category}, Total Amount: {item.TotalAmount}");
         }
     }
 
