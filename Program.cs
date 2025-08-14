@@ -2,36 +2,54 @@
 class Program
 {
 
-
-    //Second Task Main
-    public class Customer
+    class Product
     {
-        public string Name { get; set; }
-        public List<Order> Orders { get; set; }
+        public int Id { get; set; }
+        public int CategoryId { get; set; }
     }
 
-    public class Order
+    class Order
     {
-        public int OrderId { get; set; }
-        public decimal Total { get; set; }
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
+
+    class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class Customer
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public List<OrderSecond> Orders { get; set; }
+    }
+    public class OrderSecond
+    {
+        public int Id { get; set; }
+        public List<OrderItem> Items { get; set; }
+    }
+    public class OrderItem
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+
+    }
+
+    public class ProductSecond
+    {
+        public int Id { get; set; }
+        public string Category { get; set; }
+        public decimal Price { get; set; }
     }
 
     public class Sale
     {
         public string Region { get; set; }
+        public int CustomerId { get; set; }
         public decimal Amount { get; set; }
-    }
-
-    public class Product
-    {
-        public int Id { get; set; }
-        public string Category { get; set; }
-    }
-
-    public class Order_Group
-    {
-        public int ProductId { get; set; }
-        public int Quantity { get; set; }
     }
 
     public class Transaction
@@ -44,33 +62,134 @@ class Program
     static void Main(string[] args)
     {
 
-        // Question 1: Nested Projection with SelectMany
+        // Question 1: Multi-Level Join with Grouping and Conditional Aggregation
+        List<Order> orders = new List<Order>
+    {
+        new Order { ProductId = 1, Quantity = 60 },
+        new Order { ProductId = 2, Quantity = 50 },
+        new Order { ProductId = 3, Quantity = 30 },
+        new Order { ProductId = 4, Quantity = 80 },
+        new Order { ProductId = 2, Quantity = 60 },
+        new Order { ProductId = 3, Quantity = 90 }
+    };
 
-        List<Customer> customers = new List<Customer>
+        List<Product> products = new List<Product>
+    {
+        new Product { Id = 1, CategoryId = 1 },
+        new Product { Id = 2, CategoryId = 2 },
+        new Product { Id = 3, CategoryId = 1 },
+        new Product { Id = 4, CategoryId = 3 }
+    };
+
+        List<Category> categories = new List<Category>
+    {
+        new Category { Id = 1, Name = "Electronics" },
+        new Category { Id = 2, Name = "Books" },
+        new Category { Id = 3, Name = "Clothing" }
+    };
+
+        var categoryTotals = orders
+            .Join(products, o => o.ProductId, p => p.Id, (o, p) => new { o.Quantity, p.CategoryId })
+            .Join(categories, op => op.CategoryId, c => c.Id, (op, c) => new { c.Name, op.Quantity })
+            .GroupBy(x => x.Name)
+            .Select(g => new { Category = g.Key, TotalQuantity = g.Sum(x => x.Quantity) })
+            .Where(x => x.TotalQuantity > 100);
+
+        foreach (var item in categoryTotals)
         {
-            new Customer { Name = "Alice", Orders = new List<Order> { new Order { OrderId = 1, Total = 100 }, new Order { OrderId = 2, Total = 150 } } },
-            new Customer { Name = "Bob", Orders = new List<Order> { new Order { OrderId = 3, Total = 200 } } }
-        };
-
-        var flattenedOrders = customers
-            .SelectMany(c => c.Orders, (c, o) => new { CustomerName = c.Name, o.Total });
-
-        foreach (var item in flattenedOrders)
-        {
-            Console.WriteLine($"Customer: {item.CustomerName}, Order Total: {item.Total}");
+            Console.WriteLine($"Category: {item.Category}, Total Quantity Sold: {item.TotalQuantity}");
         }
 
         Console.WriteLine("----------------------------------------");
-        // Question 2: Conditional Group Aggregation
+
+
+        // Question 2: Multi-Level Nested Join with Filtering
+        List<ProductSecond> products2 = new List<ProductSecond>
+        {
+            new ProductSecond { Id = 1, Category = "Electronics", Price = 100 },
+            new ProductSecond { Id = 2, Category = "Books", Price = 20 },
+            new ProductSecond { Id = 3, Category = "Electronics", Price = 150 },
+            new ProductSecond { Id = 4, Category = "Clothing", Price = 50 }
+        };
+
+        List<Customer> customers = new List<Customer>
+        {
+            new Customer
+            {
+                Id = 1,
+                Name = "Alice",
+                Orders = new List<OrderSecond>
+                {
+                    new OrderSecond
+                    {
+                        Id = 1,
+                        Items = new List<OrderItem>
+                        {
+                            new OrderItem { ProductId = 1, Quantity = 2 },
+                            new OrderItem { ProductId = 2, Quantity = 1 }
+                        }
+                    },
+                    new OrderSecond
+                    {
+                        Id = 2,
+                        Items = new List<OrderItem>
+                        {
+                            new OrderItem { ProductId = 3, Quantity = 1 }
+                        }
+                    }
+                }
+            },
+            new Customer
+            {
+                Id = 2,
+                Name = "Bob",
+                Orders = new List<OrderSecond>
+                {
+                    new OrderSecond
+                    {
+                        Id = 3,
+                        Items = new List<OrderItem>
+                        {
+                            new OrderItem { ProductId = 3, Quantity = 2 },
+                            new OrderItem { ProductId = 4, Quantity = 1 }
+                        }
+                    }
+                }
+            }
+        };
+
+        var electronicsSpend = customers
+            .Select(c => new
+            {
+                Customer = c.Name,
+                TotalSpend = c.Orders
+                    .SelectMany(o => o.Items)
+                    .Join(products2.Where(p => p.Category == "Electronics"),
+                          oi => oi.ProductId,
+                          p => p.Id,
+                          (oi, p) => oi.Quantity * p.Price)
+                    .Sum()
+            })
+            .Where(x => x.TotalSpend > 0)
+            .OrderByDescending(x => x.TotalSpend);
+
+        foreach (var item in electronicsSpend)
+        {
+            Console.WriteLine($"Customer: {item.Customer}, Total Electronics Spend: {item.TotalSpend}");
+        }
+        Console.WriteLine("----------------------------------------");
+
+        // Question 3: Dynamic Grouping with Sub-Aggregates
 
         List<Sale> sales = new List<Sale>
         {
-            new Sale { Region = "North", Amount = 1200 },
-            new Sale { Region = "North", Amount = 800 },
-            new Sale { Region = "South", Amount = 1500 },
-            new Sale { Region = "South", Amount = 700 },
-            new Sale { Region = "East", Amount = 2000 },
-            new Sale { Region = "East", Amount = 500 }
+            new Sale { Region = "North", CustomerId = 1, Amount = 1200 },
+            new Sale { Region = "North", CustomerId = 2, Amount = 800 },
+            new Sale { Region = "South", CustomerId = 3, Amount = 1500 },
+            new Sale { Region = "South", CustomerId = 3, Amount = 700 },
+            new Sale { Region = "East", CustomerId = 4, Amount = 950 },
+            new Sale { Region = "East", CustomerId = 5, Amount = 1100 },
+            new Sale { Region = "North", CustomerId = 1, Amount = 500 }
         };
 
         var regionStats = sales
@@ -79,51 +198,21 @@ class Program
             {
                 Region = g.Key,
                 TotalSales = g.Sum(s => s.Amount),
-                AverageSales = g.Average(s => s.Amount),
-                HighValueSalesCount = g.Count(s => s.Amount > 1000)
+                DistinctCustomers = g.Select(s => s.CustomerId).Distinct().Count(),
+                MaxTransaction = g.Max(s => s.Amount),
+                HighSales = g.Where(s => s.Amount > 1000).Sum(s => s.Amount),
+                LowSales = g.Where(s => s.Amount <= 1000).Sum(s => s.Amount)
             });
 
-        foreach (var stat in regionStats)
+        foreach (var item in regionStats)
         {
-            Console.WriteLine($"Region: {stat.Region}, Total: {stat.TotalSales}, Average: {stat.AverageSales}, High-Value Sales: {stat.HighValueSalesCount}");
+            Console.WriteLine($"Region: {item.Region}");
+            Console.WriteLine($"  Total Sales: {item.TotalSales}");
+            Console.WriteLine($"  Distinct Customers: {item.DistinctCustomers}");
+            Console.WriteLine($"  Max Single Transaction: {item.MaxTransaction}");
+            Console.WriteLine($"  High Sales (>1000): {item.HighSales}");
+            Console.WriteLine($"  Low Sales (<=1000): {item.LowSales}");
         }
-
-        Console.WriteLine("----------------------------------------");
-        // Question 3: Join + GroupBy + Aggregation
-
-        List<Order_Group> orders = new List<Order_Group>
-        {
-            new Order_Group { ProductId = 1, Quantity = 10 },
-            new Order_Group { ProductId = 2, Quantity = 5 },
-            new Order_Group { ProductId = 3, Quantity = 8 },
-            new Order_Group { ProductId = 1, Quantity = 7 },
-            new Order_Group { ProductId = 2, Quantity = 3 }
-        };
-
-        List<Product> products = new List<Product>
-        {
-            new Product { Id = 1, Category = "Electronics" },
-            new Product { Id = 2, Category = "Books" },
-            new Product { Id = 3, Category = "Electronics" }
-        };
-
-        var categorySales = orders
-            .Join(products,
-                o => o.ProductId,
-                p => p.Id,
-                (o, p) => new { p.Category, o.Quantity })
-            .GroupBy(x => x.Category)
-            .Select(g => new
-            {
-                Category = g.Key,
-                TotalQuantitySold = g.Sum(x => x.Quantity)
-            });
-
-        foreach (var item in categorySales)
-        {
-            Console.WriteLine($"Category: {item.Category}, Total Quantity Sold: {item.TotalQuantitySold}");
-        }
-
         Console.WriteLine("----------------------------------------");
         // Question 4: Time-Series Aggregation by Month and Category
 
